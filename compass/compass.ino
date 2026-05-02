@@ -131,7 +131,7 @@ class ServerCallbacks : public NimBLEServerCallbacks {
 };
 
 class CommandCallbacks : public NimBLECharacteristicCallbacks {
-  void onWrite(NimBLECharacteristic* c, const NimBLEAttVal& val) override {
+  void onWrite(NimBLECharacteristic* c, const NimBLEAttValue& val) override {
     String raw = val.c_str();
     StaticJsonDocument<128> doc;
     if (deserializeJson(doc, raw) != DeserializationError::Ok) return;
