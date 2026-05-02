@@ -227,27 +227,13 @@ void setup() {
   Serial.println("NeoPixel test done");
   Serial.flush();
 
-  // I2C bus recovery — if SDA is stuck low from a previous crash the ESP32
-  // watchdog fires inside Wire.begin(). Toggling SCL 9 times unsticks it.
-  Serial.println("Step: I2C bus recovery");
+  // Try default ESP32 I2C pins first (SDA=21, SCL=22), then fall back to
+  // the config pins if the scan finds nothing. Some boards wire differently.
+  Serial.printf("Step: Wire.begin() on default pins (SDA=21 SCL=22)\n");
   Serial.flush();
-  pinMode(PIN_LSM9DS1_SCL, OUTPUT);
-  pinMode(PIN_LSM9DS1_SDA, OUTPUT);
-  digitalWrite(PIN_LSM9DS1_SDA, HIGH);
-  for (int i = 0; i < 9; i++) {
-    digitalWrite(PIN_LSM9DS1_SCL, HIGH); delayMicroseconds(5);
-    digitalWrite(PIN_LSM9DS1_SCL, LOW);  delayMicroseconds(5);
-  }
-  // STOP condition to release the bus
-  digitalWrite(PIN_LSM9DS1_SCL, HIGH); delayMicroseconds(5);
-  digitalWrite(PIN_LSM9DS1_SDA, HIGH); delayMicroseconds(5);
-  delay(10);
-
-  Serial.println("Step: starting Wire.begin()");
-  Serial.flush();
-  Wire.begin(PIN_LSM9DS1_SDA, PIN_LSM9DS1_SCL);
+  Wire.begin(21, 22);
   Serial.println("Step: Wire.begin() complete");
-  Serial.printf("I2C on SDA=GPIO%d SCL=GPIO%d — scanning...\n", PIN_LSM9DS1_SDA, PIN_LSM9DS1_SCL);
+  Serial.printf("I2C on SDA=GPIO21 SCL=GPIO22 — scanning...\n");
   bool anyFound = false;
   for (uint8_t addr = 1; addr < 127; addr++) {
     Wire.beginTransmission(addr);
