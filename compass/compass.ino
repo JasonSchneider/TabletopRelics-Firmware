@@ -118,11 +118,11 @@ void sendDeviceInfo(NimBLECharacteristic* c) {
 // ================================================================ BLE callbacks
 
 class ServerCallbacks : public NimBLEServerCallbacks {
-  void onConnect(NimBLEServer* s) override {
+  void onConnect(NimBLEServer* s, NimBLEConnInfo& connInfo) override {
     deviceConnected       = true;
     connectionAnimPending = true; // main loop will run the animation
   }
-  void onDisconnect(NimBLEServer* s) override {
+  void onDisconnect(NimBLEServer* s, NimBLEConnInfo& connInfo, int reason) override {
     deviceConnected = false;
     // Return to ambient mode so the compass stays useful without the app
     mode = COMPASS_MODE_AMBIENT;
@@ -131,8 +131,8 @@ class ServerCallbacks : public NimBLEServerCallbacks {
 };
 
 class CommandCallbacks : public NimBLECharacteristicCallbacks {
-  void onWrite(NimBLECharacteristic* c) override {
-    String raw = c->getValue().c_str();
+  void onWrite(NimBLECharacteristic* c, const NimBLEAttVal& val) override {
+    String raw = val.c_str();
     StaticJsonDocument<128> doc;
     if (deserializeJson(doc, raw) != DeserializationError::Ok) return;
 
@@ -203,7 +203,6 @@ void setupBle() {
 
   NimBLEAdvertising* adv = NimBLEDevice::getAdvertising();
   adv->addServiceUUID(UUID_SERVICE);
-  adv->setScanResponse(true);
   NimBLEDevice::startAdvertising();
 }
 
