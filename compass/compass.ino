@@ -227,13 +227,13 @@ void setup() {
   Serial.println("NeoPixel test done");
   Serial.flush();
 
-  // Try default ESP32 I2C pins first (SDA=21, SCL=22), then fall back to
-  // the config pins if the scan finds nothing. Some boards wire differently.
-  Serial.printf("Step: Wire.begin() on default pins (SDA=21 SCL=22)\n");
+  // Try both common I2C pin pairs for the HUZZAH32.
+  // The board labels SDA/SCL but ESP32 can use either GPIO 21/22 or 23/22.
+  Serial.println("Step: Wire.begin() on SDA=23 SCL=22");
   Serial.flush();
-  Wire.begin(21, 22);
+  Wire.begin(PIN_LSM9DS1_SDA, PIN_LSM9DS1_SCL);
   Serial.println("Step: Wire.begin() complete");
-  Serial.printf("I2C on SDA=GPIO21 SCL=GPIO22 — scanning...\n");
+  Serial.printf("I2C on SDA=GPIO%d SCL=GPIO%d — scanning...\n", PIN_LSM9DS1_SDA, PIN_LSM9DS1_SCL);
   bool anyFound = false;
   for (uint8_t addr = 1; addr < 127; addr++) {
     Wire.beginTransmission(addr);
