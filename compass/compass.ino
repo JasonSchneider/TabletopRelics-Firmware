@@ -227,6 +227,22 @@ void setup() {
   Serial.println("NeoPixel test done");
   Serial.flush();
 
+  // I2C bus recovery — if SDA is stuck low from a previous crash the ESP32
+  // watchdog fires inside Wire.begin(). Toggling SCL 9 times unsticks it.
+  Serial.println("Step: I2C bus recovery");
+  Serial.flush();
+  pinMode(PIN_LSM9DS1_SCL, OUTPUT);
+  pinMode(PIN_LSM9DS1_SDA, OUTPUT);
+  digitalWrite(PIN_LSM9DS1_SDA, HIGH);
+  for (int i = 0; i < 9; i++) {
+    digitalWrite(PIN_LSM9DS1_SCL, HIGH); delayMicroseconds(5);
+    digitalWrite(PIN_LSM9DS1_SCL, LOW);  delayMicroseconds(5);
+  }
+  // STOP condition to release the bus
+  digitalWrite(PIN_LSM9DS1_SCL, HIGH); delayMicroseconds(5);
+  digitalWrite(PIN_LSM9DS1_SDA, HIGH); delayMicroseconds(5);
+  delay(10);
+
   Serial.println("Step: starting Wire.begin()");
   Serial.flush();
   Wire.begin(PIN_LSM9DS1_SDA, PIN_LSM9DS1_SCL);
