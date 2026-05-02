@@ -208,11 +208,27 @@ void setupBle() {
 
 void setup() {
   Serial.begin(115200);
-  ring.begin();
+  delay(500); // give serial monitor time to connect
+  Serial.println("=== Magic Compass booting ===");
 
+  // ---- NeoPixel hardware test ----
+  // Lights each of the 8 points in white one by one.
+  // If nothing appears here the problem is wiring or the pin constant.
+  Serial.printf("NeoPixel ring on GPIO %d — running hardware test\n", PIN_NEOPIXEL);
+  ring.begin();
+  for (uint8_t i = 0; i < RING_NUM_POINTS; i++) {
+    ring.showPoint(i, NeoRing::color(255, 255, 255));
+    Serial.printf("  lit point %d\n", i);
+    delay(150);
+  }
+  ring.clear();
+  Serial.println("NeoPixel test done");
+
+  // ---- Sensor init ----
+  Serial.println("Initialising LSM9DS1...");
   if (!sensor.begin()) {
-    Serial.println("LSM9DS1 not found — check wiring");
-    // Blink north LED red until reset
+    Serial.println("ERROR: LSM9DS1 not found — check SDA/SCL wiring");
+    // Blink north LED red until reset so it's obvious at the bench
     while (true) {
       ring.showPoint(0, NeoRing::color(255, 0, 0));
       delay(300);
@@ -220,14 +236,16 @@ void setup() {
       delay(300);
     }
   }
+  Serial.println("LSM9DS1 OK");
 
-  // Initial heading so the ring lights immediately on boot
+  // ---- Initial heading ----
   currentBearing = sensor.heading();
   currentPoint   = bearingToPoint(currentBearing);
+  Serial.printf("Initial heading: %.1f° → compass point %d\n", currentBearing, currentPoint);
   ring.showPoint(currentPoint, COLOR_AMBIENT);
 
   setupBle();
-  Serial.println("Magic Compass ready — advertising");
+  Serial.println("BLE advertising — ready");
 }
 
 // ================================================================ Loop
@@ -247,7 +265,19 @@ void loop() {
   // --- Ambient: read sensor and snap to nearest north-facing point
   if (mode == COMPASS_MODE_AMBIENT && now - lastSensorRead >= SENSOR_UPDATE_MS) {
     lastSensorRead = now;
+    float prevBearing = currentBearing;
     currentBearing = sensor.heading();
+    uint8_t newPoint = bearingToPointHysteresis(currentBearing, currentPoint);
+
+    // Print every 2 seconds so the monitor isn't flooded
+    static unsigned long lastDebugPrint = 0;
+    if (now - lastDebugPrint >= 2000) {
+      lastDebugPrint = now;
+      Serial.printf("Heading: %.1f° → point %d (was %.1f° / point %d) BLE: %s\n",
+        currentBearing, newPoint, prevBearing, currentPoint,
+        deviceConnected ? "connected" : "advertising");
+    }
+
     updateRing();
   }
 
