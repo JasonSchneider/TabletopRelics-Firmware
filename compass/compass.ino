@@ -12,6 +12,7 @@
 //
 
 #include <Arduino.h>
+#include <Wire.h>
 #include <NimBLEDevice.h>
 #include <ArduinoJson.h>
 
@@ -223,6 +224,19 @@ void setup() {
   }
   ring.clear();
   Serial.println("NeoPixel test done");
+
+  // ---- I2C init + bus scan ----
+  Wire.begin(PIN_LSM9DS1_SDA, PIN_LSM9DS1_SCL);
+  Serial.printf("I2C on SDA=GPIO%d SCL=GPIO%d — scanning...\n", PIN_LSM9DS1_SDA, PIN_LSM9DS1_SCL);
+  bool anyFound = false;
+  for (uint8_t addr = 1; addr < 127; addr++) {
+    Wire.beginTransmission(addr);
+    if (Wire.endTransmission() == 0) {
+      Serial.printf("  Found device at 0x%02X\n", addr);
+      anyFound = true;
+    }
+  }
+  if (!anyFound) Serial.println("  No I2C devices found — check wiring and power");
 
   // ---- Sensor init ----
   Serial.println("Initialising LSM9DS1...");
