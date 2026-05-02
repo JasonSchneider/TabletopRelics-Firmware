@@ -55,6 +55,27 @@ public:
     pos = (pos + 1) % _numPoints;
   }
 
+  // Clockwise chase around all active points — call once on BLE connect.
+  // Blocking: takes numPoints * stepMs * passes milliseconds total.
+  void connectionAnimation(uint32_t color, uint8_t passes = 2, uint16_t stepMs = 50) {
+    for (uint8_t p = 0; p < passes; p++) {
+      for (uint8_t i = 0; i < _numPoints; i++) {
+        _ring.clear();
+        _ring.setPixelColor(pointToLed(i), color);
+        _ring.show();
+        delay(stepMs);
+      }
+    }
+    // Brief full-ring flash to mark the end of the sequence
+    for (uint8_t i = 0; i < _numPoints; i++) {
+      _ring.setPixelColor(pointToLed(i), dimColor(color, 0.4));
+    }
+    _ring.show();
+    delay(120);
+    _ring.clear();
+    _ring.show();
+  }
+
   void clear() {
     _ring.clear();
     _ring.show();

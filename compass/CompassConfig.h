@@ -16,6 +16,12 @@
 #define COLOR_NORTH      NeoRing::color(255, 200,   0)  // warm gold — commanded
 #define COLOR_AMBIENT    NeoRing::color(  0, 180, 255)  // cool blue — real north
 #define COLOR_CALIBRATE  NeoRing::color(120,   0, 255)  // violet sweep
+#define COLOR_CONNECT    NeoRing::color(  0, 255, 140)  // green flash — BLE connected
+
+// ------------------------------------------------- Ambient hysteresis
+// Heading must move this many degrees past a boundary before the LED snaps
+// to the next point. Prevents flicker when heading sits on a boundary.
+#define HEADING_HYSTERESIS_DEG  5.0
 
 // ------------------------------------------------- Timing
 #define SENSOR_UPDATE_MS   100   // how often to read LSM9DS1 in ambient mode
