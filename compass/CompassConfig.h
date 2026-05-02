@@ -1,9 +1,9 @@
 #pragma once
 
 // ------------------------------------------------- Hardware pins
-#define PIN_NEOPIXEL    14   // NeoPixel ring data pin — adjust to your wiring
-#define PIN_LSM9DS1_SDA 23   // I2C SDA (HUZZAH32 default)
-#define PIN_LSM9DS1_SCL 22   // I2C SCL (HUZZAH32 default)
+#define PIN_NEOPIXEL    25   // A1 on HUZZAH32 v2 = GPIO 25
+#define PIN_LSM9DS1_SDA 23   // SDA on HUZZAH32 v2 = GPIO 23
+#define PIN_LSM9DS1_SCL 22   // SCL on HUZZAH32 v2 = GPIO 22
 
 // ------------------------------------------------- LED ring
 #define RING_LED_COUNT   24  // physical LEDs on the ring
