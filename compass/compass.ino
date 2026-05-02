@@ -223,10 +223,14 @@ void setup() {
     delay(150);
   }
   ring.clear();
+  delay(200); // let power stabilise after LED test
   Serial.println("NeoPixel test done");
+  Serial.flush();
 
-  // ---- I2C init + bus scan ----
+  Serial.println("Step: starting Wire.begin()");
+  Serial.flush();
   Wire.begin(PIN_LSM9DS1_SDA, PIN_LSM9DS1_SCL);
+  Serial.println("Step: Wire.begin() complete");
   Serial.printf("I2C on SDA=GPIO%d SCL=GPIO%d — scanning...\n", PIN_LSM9DS1_SDA, PIN_LSM9DS1_SCL);
   bool anyFound = false;
   for (uint8_t addr = 1; addr < 127; addr++) {
