@@ -51,13 +51,14 @@ uint8_t  spillCount         = 0;    // 0–4 neighbors per side lit at diminishi
 bool     allLedsEnabled     = false; // light all compass points at once
 
 // ------------------------------------------------------------------ Timers
-unsigned long lastSensorRead  = 0;
-unsigned long lastBleNotify   = 0;
-unsigned long lastSweepStep   = 0;
-unsigned long lastPulseStep   = 0;
-unsigned long lastSensorRetry = 0;
-unsigned long lastFaultBlink  = 0;
-bool          faultLedOn      = false;
+unsigned long lastSensorRead    = 0;
+unsigned long lastBleNotify     = 0;
+unsigned long lastBatteryNotify = 0;
+unsigned long lastSweepStep     = 0;
+unsigned long lastPulseStep     = 0;
+unsigned long lastSensorRetry   = 0;
+unsigned long lastFaultBlink    = 0;
+bool          faultLedOn        = false;
 
 // ================================================================ Helpers
 
@@ -79,6 +80,20 @@ uint8_t bearingToPointHysteresis(float bearing, uint8_t lastPoint) {
   if (dist > 180.0) dist -= 360.0;
 
   return (dist >= HEADING_HYSTERESIS_DEG) ? candidate : lastPoint;
+}
+
+uint8_t readBatteryPercent() {
+  int raw = analogRead(PIN_BATTERY_ADC);
+  int pct = map(raw, BATTERY_ADC_EMPTY, BATTERY_ADC_FULL, 0, 100);
+  return (uint8_t)constrain(pct, 0, 100);
+}
+
+bool isCharging() {
+#ifdef PIN_CHARGE_STAT
+  return digitalRead(PIN_CHARGE_STAT) == LOW;
+#else
+  return false;
+#endif
 }
 
 // Map speed 0–100 to a step interval in milliseconds (100 = fast, 0 = slow).
@@ -148,14 +163,15 @@ void notifyState() {
   if (!deviceConnected || !stateChar) return;
 
   // Field names must match the RelicState type in src/ble/protocol.ts
-  StaticJsonDocument<160> doc;
+  StaticJsonDocument<192> doc;
   doc["type"]       = DEVICE_TYPE_COMPASS;
   doc["mode"]       = mode;
   doc["heading"]    = (int)round(currentBearing);
   doc["target"]     = (int)round(targetBearing);
   doc["calibrated"] = sensor.isCalibrated();
+  doc["charging"]   = isCharging();
 
-  char buf[160];
+  char buf[192];
   serializeJson(doc, buf);
   stateChar->setValue(buf);
   stateChar->notify();
@@ -286,7 +302,7 @@ void setupBle() {
 
   batteryChar = svc->createCharacteristic(
     UUID_BATTERY, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY);
-  uint8_t batt = 100;
+  uint8_t batt = readBatteryPercent();
   batteryChar->setValue(&batt, 1);
 
   svc->start();
@@ -413,5 +429,13 @@ void loop() {
   if (deviceConnected && now - lastBleNotify >= BLE_NOTIFY_MS) {
     lastBleNotify = now;
     notifyState();
+  }
+
+  // --- Periodic battery notify
+  if (deviceConnected && batteryChar && now - lastBatteryNotify >= BATTERY_NOTIFY_MS) {
+    lastBatteryNotify = now;
+    uint8_t batt = readBatteryPercent();
+    batteryChar->setValue(&batt, 1);
+    batteryChar->notify();
   }
 }
