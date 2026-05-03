@@ -69,10 +69,10 @@ public:
   void showPointWithSpill(uint8_t point, uint32_t color, uint8_t spillCount) {
     _ring.clear();
     _ring.setPixelColor(pointToLed(point % _numPoints), color);
+    uint32_t spill = dimColor(color, 0.5f);
     for (uint8_t i = 1; i <= spillCount; i++) {
-      uint32_t dim = dimColor(color, 1.0f / (float)(i + 1));
-      _ring.setPixelColor(pointToLed((point + _numPoints - i) % _numPoints), dim);
-      _ring.setPixelColor(pointToLed((point + i) % _numPoints), dim);
+      _ring.setPixelColor(pointToLed((point + _numPoints - i) % _numPoints), spill);
+      _ring.setPixelColor(pointToLed((point + i) % _numPoints), spill);
     }
     _ring.show();
   }
@@ -98,10 +98,10 @@ public:
       }
     } else {
       _ring.setPixelColor(pointToLed(point % _numPoints), dimColor(color, brightness));
+      uint32_t spillDim = dimColor(color, brightness * 0.5f);
       for (uint8_t i = 1; i <= spillCount; i++) {
-        uint32_t dim = dimColor(color, brightness / (float)(i + 1));
-        _ring.setPixelColor(pointToLed((point + _numPoints - i) % _numPoints), dim);
-        _ring.setPixelColor(pointToLed((point + i) % _numPoints), dim);
+        _ring.setPixelColor(pointToLed((point + _numPoints - i) % _numPoints), spillDim);
+        _ring.setPixelColor(pointToLed((point + i) % _numPoints), spillDim);
       }
     }
     _ring.show();
