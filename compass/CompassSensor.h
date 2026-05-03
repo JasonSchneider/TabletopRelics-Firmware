@@ -1,39 +1,38 @@
 #pragma once
 #include <Wire.h>
+#include <Adafruit_LSM9DS1.h>
 #include <Adafruit_Sensor.h>
-#include <Adafruit_LSM303_U.h>
 
-// Tilt-compensated compass heading using the LSM303 magnetometer + accelerometer.
-// Uses the Adafruit Unified Sensor interface (Adafruit_LSM303_U library).
+// Tilt-compensated compass heading using the LSM9DS1 magnetometer + accelerometer.
 
 class CompassSensor {
 public:
-  CompassSensor()
-    : _mag(12345), _accel(54321), _calibrated(false) {
+  CompassSensor() : _calibrated(false) {
     _hardIronOffset[0] = 0;
     _hardIronOffset[1] = 0;
     _hardIronOffset[2] = 0;
   }
 
   bool begin() {
-    if (!_mag.begin())   return false;
-    if (!_accel.begin()) return false;
+    if (!_lsm.begin()) return false;
+    _lsm.setupAccel(_lsm.LSM9DS1_ACCELRANGE_2G);
+    _lsm.setupMag(_lsm.LSM9DS1_MAGGAIN_4GAUSS);
+    _lsm.setupGyro(_lsm.LSM9DS1_GYROSCALE_245DPS);
     return true;
   }
 
   // Returns heading in degrees (0 = North, clockwise), tilt-compensated.
   float heading() {
-    sensors_event_t magEvent, accelEvent;
-    _mag.getEvent(&magEvent);
-    _accel.getEvent(&accelEvent);
+    sensors_event_t accel, mag, gyro, temp;
+    _lsm.getEvent(&accel, &mag, &gyro, &temp);
 
-    float mx = magEvent.magnetic.x - _hardIronOffset[0];
-    float my = magEvent.magnetic.y - _hardIronOffset[1];
-    float mz = magEvent.magnetic.z - _hardIronOffset[2];
+    float mx = mag.magnetic.x - _hardIronOffset[0];
+    float my = mag.magnetic.y - _hardIronOffset[1];
+    float mz = mag.magnetic.z - _hardIronOffset[2];
 
-    float ax = accelEvent.acceleration.x;
-    float ay = accelEvent.acceleration.y;
-    float az = accelEvent.acceleration.z;
+    float ax = accel.acceleration.x;
+    float ay = accel.acceleration.y;
+    float az = accel.acceleration.z;
 
     float roll  = atan2(ay, az);
     float pitch = atan2(-ax, sqrt(ay * ay + az * az));
@@ -53,9 +52,9 @@ public:
   }
 
   void updateCalibration() {
-    sensors_event_t magEvent;
-    _mag.getEvent(&magEvent);
-    float v[3] = { magEvent.magnetic.x, magEvent.magnetic.y, magEvent.magnetic.z };
+    sensors_event_t accel, mag, gyro, temp;
+    _lsm.getEvent(&accel, &mag, &gyro, &temp);
+    float v[3] = { mag.magnetic.x, mag.magnetic.y, mag.magnetic.z };
     for (int i = 0; i < 3; i++) {
       if (v[i] < _magMin[i]) _magMin[i] = v[i];
       if (v[i] > _magMax[i]) _magMax[i] = v[i];
@@ -72,8 +71,7 @@ public:
   bool isCalibrated() const { return _calibrated; }
 
 private:
-  Adafruit_LSM303_Mag_Unified   _mag;
-  Adafruit_LSM303_Accel_Unified _accel;
+  Adafruit_LSM9DS1 _lsm;
   bool  _calibrated;
   float _hardIronOffset[3];
   float _magMin[3], _magMax[3];

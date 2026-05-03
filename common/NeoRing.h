@@ -55,6 +55,83 @@ public:
     pos = (pos + 1) % _numPoints;
   }
 
+  // Spin effect: single lit point chases around all positions.
+  void showSpinStep(uint32_t color) {
+    static uint8_t pos = 0;
+    _ring.clear();
+    _ring.setPixelColor(pointToLed(pos), color);
+    _ring.show();
+    pos = (pos + 1) % _numPoints;
+  }
+
+  // Light one compass point with spill into neighbors at diminishing brightness.
+  // spillCount = 0 → single LED; 1 → +1 neighbor each side at 50%; 2 → also 33%; etc.
+  void showPointWithSpill(uint8_t point, uint32_t color, uint8_t spillCount) {
+    _ring.clear();
+    _ring.setPixelColor(pointToLed(point % _numPoints), color);
+    for (uint8_t i = 1; i <= spillCount; i++) {
+      uint32_t dim = dimColor(color, 1.0f / (float)(i + 1));
+      _ring.setPixelColor(pointToLed((point + _numPoints - i) % _numPoints), dim);
+      _ring.setPixelColor(pointToLed((point + i) % _numPoints), dim);
+    }
+    _ring.show();
+  }
+
+  // Light all compass points at the same color.
+  void showAllPoints(uint32_t color) {
+    _ring.clear();
+    for (uint8_t i = 0; i < _numPoints; i++) {
+      _ring.setPixelColor(pointToLed(i), color);
+    }
+    _ring.show();
+  }
+
+  // Pulse effect: breathes via sine wave. phaseStep controls speed (call at fixed 20 ms).
+  // allLeds=true pulses every point; otherwise pulses one point with optional spill.
+  void showPulseStep(uint8_t point, uint32_t color, float phaseStep, bool allLeds, uint8_t spillCount) {
+    static float phase = 0.0f;
+    float brightness = (sinf(phase) + 1.0f) / 2.0f;
+    _ring.clear();
+    if (allLeds) {
+      for (uint8_t i = 0; i < _numPoints; i++) {
+        _ring.setPixelColor(pointToLed(i), dimColor(color, brightness));
+      }
+    } else {
+      _ring.setPixelColor(pointToLed(point % _numPoints), dimColor(color, brightness));
+      for (uint8_t i = 1; i <= spillCount; i++) {
+        uint32_t dim = dimColor(color, brightness / (float)(i + 1));
+        _ring.setPixelColor(pointToLed((point + _numPoints - i) % _numPoints), dim);
+        _ring.setPixelColor(pointToLed((point + i) % _numPoints), dim);
+      }
+    }
+    _ring.show();
+    phase += phaseStep;
+    if (phase > 2.0f * PI) phase -= 2.0f * PI;
+  }
+
+  // Random effect: a random point lights up each step then clears.
+  void showRandomStep(uint32_t color) {
+    uint8_t point = random(0, _numPoints);
+    _ring.clear();
+    _ring.setPixelColor(pointToLed(point), color);
+    _ring.show();
+  }
+
+  // Pick a vivid random color from a palette so results are never muddy.
+  static uint32_t randomVividColor() {
+    static const uint32_t palette[] = {
+      color(255,   0,  80),  // crimson
+      color(255, 140,   0),  // orange
+      color(255, 200,   0),  // gold
+      color(  0, 255,  80),  // green
+      color(  0, 200, 255),  // cyan
+      color(  0,  80, 255),  // blue
+      color(140,   0, 255),  // violet
+      color(255,   0, 200),  // magenta
+    };
+    return palette[random(0, 8)];
+  }
+
   // Clockwise chase around all active points — call once on BLE connect.
   // Blocking: takes numPoints * stepMs * passes milliseconds total.
   void connectionAnimation(uint32_t color, uint8_t passes = 2, uint16_t stepMs = 50) {
