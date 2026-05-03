@@ -27,23 +27,26 @@
 #define CMD_SLEEP      "sleep"
 
 // Compass — must match RelicCommand in protocol.ts
-#define CMD_COMPASS_SET_TARGET   "compass.setTarget"   // payload: { bearing: 0–359 }
-#define CMD_COMPASS_SET_MODE     "compass.setMode"      // payload: { mode: string }
-#define CMD_COMPASS_SET_COLOR    "compass.setColor"     // payload: { r,g,b: 0–255 } or { random: true }
-#define CMD_COMPASS_SET_SPEED    "compass.setSpeed"     // payload: { speed: 0–100 }
-#define CMD_COMPASS_SET_SPILL    "compass.setSpill"     // payload: { spill: 0–4 } neighbors per side
-#define CMD_COMPASS_SET_ALL      "compass.setAll"       // payload: { all: bool }
+#define CMD_COMPASS_SET_TARGET   "compass.setTarget"       // payload: { bearing: 0–359 }
+#define CMD_COMPASS_SET_MODE     "compass.setMode"          // payload: { mode: string }
+#define CMD_COMPASS_SET_COLOR    "compass.setColor"         // payload: { r,g,b: 0–255 } or { random: true }
+#define CMD_COMPASS_SET_SPEED    "compass.setSpeed"         // payload: { speed: 0–100 }
+#define CMD_COMPASS_SET_SPILL    "compass.setSpill"         // payload: { spill: 0–4 } neighbors per side
+#define CMD_COMPASS_SET_ALL      "compass.setAll"           // payload: { all: bool }
+#define CMD_COMPASS_SET_LEDS     "compass.setLeds"          // payload: { on: bool }
+#define CMD_COMPASS_SET_SPIN_DIR "compass.setSpinDirection" // payload: { direction: "cw"|"ccw" }
 #define CMD_COMPASS_CALIBRATE    "compass.calibrate"
 
 // -------------------------------------------------------- Compass modes
 // Must match the mode union in RelicState (protocol.ts)
 #define COMPASS_MODE_AMBIENT    "ambient"
-#define COMPASS_MODE_QUEST      "quest"     // app-commanded bearing, gold LED
-#define COMPASS_MODE_MANUAL     "manual"    // slider-driven, user-chosen color
-#define COMPASS_MODE_SPIN       "spin"      // LED chases around the ring
-#define COMPASS_MODE_PULSE      "pulse"     // LED breathes at target bearing
-#define COMPASS_MODE_RANDOM     "random"    // random points flash and fade
-#define COMPASS_MODE_CALIBRATE  "calibrate" // internal only — set via compass.calibrate command
+#define COMPASS_MODE_QUEST      "quest"      // app-commanded bearing, gold LED
+#define COMPASS_MODE_MANUAL     "manual"     // slider-driven, user-chosen color
+#define COMPASS_MODE_SPIN       "spin"       // LED chases around the ring
+#define COMPASS_MODE_PULSE      "pulse"      // LED breathes at target bearing
+#define COMPASS_MODE_SPIN_PULSE "spin-pulse" // spin chase with pulsing brightness
+#define COMPASS_MODE_RANDOM     "random"     // random points flash and fade
+#define COMPASS_MODE_CALIBRATE  "calibrate"  // internal only — set via compass.calibrate command
 #define COMPASS_MODE_OFF        "off"
 
 // -------------------------------------------------------- Firmware version

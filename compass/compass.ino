@@ -49,6 +49,8 @@ uint8_t  effectSpeed        = 50;   // 0–100; mapped to step interval / phase 
 bool     randomColorEnabled = false;
 uint8_t  spillCount         = 0;    // 0–4 neighbors per side lit at diminishing brightness
 bool     allLedsEnabled     = false; // light all compass points at once
+bool     ledsEnabled        = true;  // master LED on/off (compass.setLeds)
+bool     spinCW             = true;  // spin direction: true=clockwise, false=counter-clockwise
 
 // ------------------------------------------------------------------ Timers
 unsigned long lastSensorRead    = 0;
@@ -115,6 +117,7 @@ uint32_t activeColor() {
 }
 
 void updateRing() {
+  if (!ledsEnabled) { ring.clear(); return; }
   if (mode == COMPASS_MODE_AMBIENT) {
     uint8_t point = bearingToPointHysteresis(currentBearing, currentPoint);
     if (point != currentPoint) {
@@ -250,6 +253,15 @@ class CommandCallbacks : public NimBLECharacteristicCallbacks {
       currentPoint = 255;
       updateRing();
 
+    } else if (strcmp(op, CMD_COMPASS_SET_LEDS) == 0) {
+      ledsEnabled = doc["on"].as<bool>();
+      if (!ledsEnabled) ring.clear();
+      else { currentPoint = 255; updateRing(); }
+
+    } else if (strcmp(op, CMD_COMPASS_SET_SPIN_DIR) == 0) {
+      const char* dir = doc["direction"];
+      if (dir) spinCW = strcmp(dir, "cw") == 0;
+
     } else if (strcmp(op, CMD_COMPASS_SET_MODE) == 0) {
       const char* m = doc["mode"];
       if (m) {
@@ -360,7 +372,7 @@ void loop() {
   //     Quest, manual, and all effects work without the sensor.
   if (!sensorAvailable &&
       (mode == COMPASS_MODE_AMBIENT || mode == COMPASS_MODE_CALIBRATE)) {
-    if (now - lastFaultBlink >= FAULT_BLINK_MS) {
+    if (ledsEnabled && now - lastFaultBlink >= FAULT_BLINK_MS) {
       lastFaultBlink = now;
       faultLedOn = !faultLedOn;
       if (faultLedOn) ring.showPoint(0, COLOR_FAULT);
@@ -402,17 +414,17 @@ void loop() {
   }
 
   // --- Spin / Random: speed controls step interval
-  if (mode == COMPASS_MODE_SPIN || mode == COMPASS_MODE_RANDOM) {
+  if (ledsEnabled && (mode == COMPASS_MODE_SPIN || mode == COMPASS_MODE_RANDOM)) {
     if (now - lastSweepStep >= speedToMs(effectSpeed)) {
       lastSweepStep = now;
       uint32_t c = activeColor();
-      if (mode == COMPASS_MODE_SPIN)   ring.showSpinStep(c, spillCount);
+      if (mode == COMPASS_MODE_SPIN)   ring.showSpinStep(c, spillCount, spinCW);
       else                             ring.showRandomStep(c);
     }
   }
 
   // --- Pulse: fixed 20 ms tick, speed controls sine-wave phase advance rate
-  if (mode == COMPASS_MODE_PULSE) {
+  if (ledsEnabled && mode == COMPASS_MODE_PULSE) {
     if (now - lastPulseStep >= 20) {
       lastPulseStep = now;
       ring.showPulseStep(
@@ -421,6 +433,23 @@ void loop() {
         speedToPhaseStep(effectSpeed),
         allLedsEnabled,
         spillCount
+      );
+    }
+  }
+
+  // --- Spin-pulse: spin position advances at spin rate, brightness breathes at 20 ms
+  if (ledsEnabled && mode == COMPASS_MODE_SPIN_PULSE) {
+    if (now - lastPulseStep >= 20) {
+      lastPulseStep = now;
+      bool advanceSpin = (now - lastSweepStep >= speedToMs(effectSpeed));
+      if (advanceSpin) lastSweepStep = now;
+      ring.showSpinPulseStep(
+        activeColor(),
+        speedToPhaseStep(effectSpeed),
+        spillCount,
+        spinCW,
+        allLedsEnabled,
+        advanceSpin
       );
     }
   }

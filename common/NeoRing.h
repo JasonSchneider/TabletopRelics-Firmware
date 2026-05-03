@@ -56,7 +56,8 @@ public:
   }
 
   // Spin effect: single lit point chases around, with optional spill into neighbors.
-  void showSpinStep(uint32_t color, uint8_t spillCount) {
+  // cw=true advances clockwise; cw=false advances counter-clockwise.
+  void showSpinStep(uint32_t color, uint8_t spillCount, bool cw = true) {
     static uint8_t pos = 0;
     _ring.clear();
     _ring.setPixelColor(pointToLed(pos), color);
@@ -68,7 +69,38 @@ public:
       factor *= 0.125f;
     }
     _ring.show();
-    pos = (pos + 1) % _numPoints;
+    pos = cw ? (pos + 1) % _numPoints : (pos + _numPoints - 1) % _numPoints;
+  }
+
+  // Spin-pulse: the chasing point breathes via a sine wave.
+  // Call at a fixed 20 ms tick. advanceSpin=true when the spin interval has elapsed.
+  void showSpinPulseStep(uint32_t color, float phaseStep, uint8_t spillCount, bool cw, bool allLeds, bool advanceSpin) {
+    static uint8_t spinPos   = 0;
+    static float   pulsePhase = 0.0f;
+
+    if (advanceSpin) {
+      spinPos = cw ? (spinPos + 1) % _numPoints : (spinPos + _numPoints - 1) % _numPoints;
+    }
+
+    float brightness = (sinf(pulsePhase) + 1.0f) / 2.0f;
+    _ring.clear();
+    if (allLeds) {
+      for (uint8_t i = 0; i < _numPoints; i++) {
+        _ring.setPixelColor(pointToLed(i), dimColor(color, brightness));
+      }
+    } else {
+      _ring.setPixelColor(pointToLed(spinPos), dimColor(color, brightness));
+      float spillFactor = brightness * 0.125f;
+      for (uint8_t i = 1; i <= spillCount; i++) {
+        _ring.setPixelColor(pointToLed((spinPos + _numPoints - i) % _numPoints), dimColor(color, spillFactor));
+        _ring.setPixelColor(pointToLed((spinPos + i) % _numPoints), dimColor(color, spillFactor));
+        spillFactor *= 0.25f;
+      }
+    }
+    _ring.show();
+
+    pulsePhase += phaseStep;
+    if (pulsePhase > 2.0f * PI) pulsePhase -= 2.0f * PI;
   }
 
   // Light one compass point with spill into neighbors at diminishing brightness.
