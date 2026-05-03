@@ -55,11 +55,18 @@ public:
     pos = (pos + 1) % _numPoints;
   }
 
-  // Spin effect: single lit point chases around all positions.
-  void showSpinStep(uint32_t color) {
+  // Spin effect: single lit point chases around, with optional spill into neighbors.
+  void showSpinStep(uint32_t color, uint8_t spillCount) {
     static uint8_t pos = 0;
     _ring.clear();
     _ring.setPixelColor(pointToLed(pos), color);
+    float factor = 0.125f;
+    for (uint8_t i = 1; i <= spillCount; i++) {
+      uint32_t dim = dimColor(color, factor);
+      _ring.setPixelColor(pointToLed((pos + _numPoints - i) % _numPoints), dim);
+      _ring.setPixelColor(pointToLed((pos + i) % _numPoints), dim);
+      factor *= 0.125f;
+    }
     _ring.show();
     pos = (pos + 1) % _numPoints;
   }

@@ -215,8 +215,8 @@ class CommandCallbacks : public NimBLECharacteristicCallbacks {
 
     if (strcmp(op, CMD_COMPASS_SET_TARGET) == 0) {
       targetBearing = fmod(doc["bearing"].as<float>() + 360.0, 360.0);
-      // Don't override manual mode — setTarget is used by both quest and manual
-      if (mode != COMPASS_MODE_MANUAL) mode = COMPASS_MODE_QUEST;
+      // Only switch to quest for modes that don't already own the bearing
+      if (mode != COMPASS_MODE_MANUAL && mode != COMPASS_MODE_PULSE) mode = COMPASS_MODE_QUEST;
       currentPoint = 255;
       updateRing();
       notifyState();
@@ -406,7 +406,7 @@ void loop() {
     if (now - lastSweepStep >= speedToMs(effectSpeed)) {
       lastSweepStep = now;
       uint32_t c = activeColor();
-      if (mode == COMPASS_MODE_SPIN)   ring.showSpinStep(c);
+      if (mode == COMPASS_MODE_SPIN)   ring.showSpinStep(c, spillCount);
       else                             ring.showRandomStep(c);
     }
   }
