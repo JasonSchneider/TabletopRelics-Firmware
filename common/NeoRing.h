@@ -66,17 +66,17 @@ public:
 
   // Light one compass point with spill into neighbors at diminishing brightness.
   // spillCount = 0 → single LED; 1 → +1 neighbor each side at 50%; 2 → also 33%; etc.
-  // Each spill ring is 25% the brightness of the ring inside it:
-  // level 1 = 25%, level 2 = 6.25%, level 3 = ~1.6%, level 4 = ~0.4%
+  // Each spill ring is 12.5% the brightness of the ring inside it:
+  // level 1 = 12.5%, level 2 = 1.56%, level 3 = ~0.2%, level 4 = ~0.02%
   void showPointWithSpill(uint8_t point, uint32_t color, uint8_t spillCount) {
     _ring.clear();
     _ring.setPixelColor(pointToLed(point % _numPoints), color);
-    float factor = 0.25f;
+    float factor = 0.125f;
     for (uint8_t i = 1; i <= spillCount; i++) {
       uint32_t dim = dimColor(color, factor);
       _ring.setPixelColor(pointToLed((point + _numPoints - i) % _numPoints), dim);
       _ring.setPixelColor(pointToLed((point + i) % _numPoints), dim);
-      factor *= 0.25f;
+      factor *= 0.125f;
     }
     _ring.show();
   }
@@ -102,7 +102,7 @@ public:
       }
     } else {
       _ring.setPixelColor(pointToLed(point % _numPoints), dimColor(color, brightness));
-      float spillFactor = brightness * 0.25f;
+      float spillFactor = brightness * 0.125f;
       for (uint8_t i = 1; i <= spillCount; i++) {
         uint32_t spillDim = dimColor(color, spillFactor);
         _ring.setPixelColor(pointToLed((point + _numPoints - i) % _numPoints), spillDim);
