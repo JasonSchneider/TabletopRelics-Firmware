@@ -51,7 +51,8 @@ uint8_t  spillCount         = 0;    // 0–4 neighbors per side lit at diminishi
 bool     allLedsEnabled     = false; // light all compass points at once
 bool     ledsEnabled        = true;  // master LED on/off (compass.setLeds)
 bool     spinCW             = true;  // spin direction: true=clockwise, false=counter-clockwise
-uint8_t  ledBrightnessPct   = 78;    // 0–100%; maps to NeoPixel 0–255 (default ≈200/255)
+uint8_t  ledBrightnessPct   = 78;    // 0–100%; primary LED brightness cap (software, not hardware)
+uint8_t  spreadIntensityPct = 50;    // 0–100%; per-neighbor falloff multiplier for spread LEDs
 
 // ------------------------------------------------------------------ Timers
 unsigned long lastSensorRead    = 0;
@@ -117,28 +118,31 @@ uint32_t activeColor() {
   return randomColorEnabled ? NeoRing::randomVividColor() : ledColor;
 }
 
+float brightnessFloat()      { return ledBrightnessPct    / 100.0f; }
+float spreadIntensityFloat() { return spreadIntensityPct  / 100.0f; }
+
 void updateRing() {
   if (!ledsEnabled) { ring.clear(); return; }
   if (mode == COMPASS_MODE_AMBIENT) {
     uint8_t point = bearingToPointHysteresis(currentBearing, currentPoint);
     if (point != currentPoint) {
       currentPoint = point;
-      ring.showPoint(currentPoint, COLOR_AMBIENT);
+      ring.showPoint(currentPoint, NeoRing::dim(COLOR_AMBIENT, brightnessFloat()));
     }
   } else if (mode == COMPASS_MODE_QUEST) {
     uint8_t point = bearingToPoint(targetBearing);
     if (point != currentPoint) {
       currentPoint = point;
-      ring.showPointWithSpill(currentPoint, COLOR_NORTH, spillCount);
+      ring.showPointWithSpill(currentPoint, COLOR_NORTH, spillCount, brightnessFloat(), spreadIntensityFloat());
     }
   } else if (mode == COMPASS_MODE_MANUAL) {
     uint8_t point = bearingToPoint(targetBearing);
     if (point != currentPoint) {
       currentPoint = point;
       if (allLedsEnabled) {
-        ring.showAllPoints(activeColor());
+        ring.showAllPoints(NeoRing::dim(activeColor(), brightnessFloat()));
       } else {
-        ring.showPointWithSpill(currentPoint, activeColor(), spillCount);
+        ring.showPointWithSpill(currentPoint, activeColor(), spillCount, brightnessFloat(), spreadIntensityFloat());
       }
     }
   } else if (mode == COMPASS_MODE_OFF) {
@@ -157,7 +161,7 @@ bool trySensorInit() {
   currentBearing = sensor.heading();
   currentPoint   = bearingToPoint(currentBearing);
   Serial.printf("Initial heading: %.1f° → compass point %d\n", currentBearing, currentPoint);
-  ring.showPoint(currentPoint, COLOR_AMBIENT);
+  ring.showPoint(currentPoint, NeoRing::dim(COLOR_AMBIENT, brightnessFloat()));
   return true;
 }
 
@@ -266,7 +270,12 @@ class CommandCallbacks : public NimBLECharacteristicCallbacks {
     } else if (strcmp(op, CMD_COMPASS_SET_BRIGHTNESS) == 0) {
       uint8_t pct = doc["brightness"].as<uint8_t>();
       ledBrightnessPct = pct > 100 ? 100 : pct;
-      ring.setBrightness((uint16_t)ledBrightnessPct * 255 / 100);
+      currentPoint = 255;
+      updateRing();
+
+    } else if (strcmp(op, CMD_COMPASS_SET_SPREAD_INTENSITY) == 0) {
+      uint8_t pct = doc["intensity"].as<uint8_t>();
+      spreadIntensityPct = pct > 100 ? 100 : pct;
       currentPoint = 255;
       updateRing();
 
@@ -426,7 +435,7 @@ void loop() {
     if (now - lastSweepStep >= speedToMs(effectSpeed)) {
       lastSweepStep = now;
       uint32_t c = activeColor();
-      if (mode == COMPASS_MODE_SPIN)   ring.showSpinStep(c, spillCount, spinCW);
+      if (mode == COMPASS_MODE_SPIN)   ring.showSpinStep(c, spillCount, spinCW, brightnessFloat(), spreadIntensityFloat());
       else                             ring.showRandomStep(c);
     }
   }
@@ -440,7 +449,9 @@ void loop() {
         activeColor(),
         speedToPhaseStep(effectSpeed),
         allLedsEnabled,
-        spillCount
+        spillCount,
+        brightnessFloat(),
+        spreadIntensityFloat()
       );
     }
   }
@@ -457,7 +468,9 @@ void loop() {
         spillCount,
         spinCW,
         allLedsEnabled,
-        advanceSpin
+        advanceSpin,
+        brightnessFloat(),
+        spreadIntensityFloat()
       );
     }
   }

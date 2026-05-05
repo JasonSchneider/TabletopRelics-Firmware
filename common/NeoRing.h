@@ -4,6 +4,16 @@
 // NeoRing wraps an Adafruit_NeoPixel and provides bearing-to-LED mapping.
 // Knows about the physical ring size, the number of active compass points,
 // and which physical index corresponds to North.
+//
+// Brightness model
+// ─────────────────
+// NeoPixel's setBrightness() is NOT used for runtime control — it modifies
+// stored pixel values in-place and causes precision loss when called repeatedly.
+// Instead every render method accepts an explicit `brightness` float (0.0–1.0)
+// that is applied only to the PRIMARY LED.  Spread neighbours are computed
+// directly from the original full-intensity `color` using spreadIntensity^n,
+// so they are NEVER attenuated by the brightness value — only by the spread
+// falloff the user configured.
 
 class NeoRing {
 public:
@@ -15,14 +25,14 @@ public:
 
   void begin() {
     _ring.begin();
-    _ring.setBrightness(200);
+    _ring.setBrightness(255); // full hardware range — brightness controlled in software
     _ring.clear();
     _ring.show();
   }
 
-  // Set global LED brightness cap (0–255). Takes effect on the next show().
-  void setBrightness(uint8_t b) {
-    _ring.setBrightness(b);
+  // Public dim helper so callers (compass.ino) can pre-dim colours.
+  static uint32_t dim(uint32_t color, float factor) {
+    return dimColor(color, factor);
   }
 
   // Light the compass point nearest to bearingDeg (0–359).
@@ -37,9 +47,9 @@ public:
     int   nextPoint    = (nearPoint + 1) % _numPoints;
 
     // Neighbours at 30% brightness
-    uint32_t dim = dimColor(color, 0.30);
-    _ring.setPixelColor(pointToLed(prevPoint), dim);
-    _ring.setPixelColor(pointToLed(nextPoint), dim);
+    uint32_t dimmed = dimColor(color, 0.30);
+    _ring.setPixelColor(pointToLed(prevPoint), dimmed);
+    _ring.setPixelColor(pointToLed(nextPoint), dimmed);
     _ring.setPixelColor(pointToLed(nearPoint), color);
     _ring.show();
   }
@@ -60,46 +70,52 @@ public:
     pos = (pos + 1) % _numPoints;
   }
 
-  // Spin effect: single lit point chases around, with optional spread into neighbors.
-  // cw=true advances clockwise; cw=false advances counter-clockwise.
-  void showSpinStep(uint32_t color, uint8_t spillCount, bool cw = true) {
+  // Spin effect: single lit point chases around.
+  // Primary LED drawn at `brightness`; spread neighbours drawn from full `color`
+  // at spreadIntensity^n per ring — independent of brightness.
+  void showSpinStep(uint32_t color, uint8_t spillCount, bool cw,
+                    float brightness, float spreadIntensity) {
     static uint8_t pos = 0;
     _ring.clear();
-    _ring.setPixelColor(pointToLed(pos), color);
-    float factor = 0.5f;
+    _ring.setPixelColor(pointToLed(pos), dimColor(color, brightness));
+    float factor = spreadIntensity;
     for (uint8_t i = 1; i <= spillCount; i++) {
       uint32_t dim = dimColor(color, factor);
       _ring.setPixelColor(pointToLed((pos + _numPoints - i) % _numPoints), dim);
       _ring.setPixelColor(pointToLed((pos + i) % _numPoints), dim);
-      factor *= 0.5f;
+      factor *= spreadIntensity;
     }
     _ring.show();
     pos = cw ? (pos + 1) % _numPoints : (pos + _numPoints - 1) % _numPoints;
   }
 
-  // Spin-pulse: the chasing point breathes via a sine wave.
+  // Spin-pulse: chasing point breathes via a sine wave.
   // Call at a fixed 20 ms tick. advanceSpin=true when the spin interval has elapsed.
-  void showSpinPulseStep(uint32_t color, float phaseStep, uint8_t spillCount, bool cw, bool allLeds, bool advanceSpin) {
-    static uint8_t spinPos   = 0;
+  // Primary LED = sineValue * brightness; spread neighbours from full color at spreadIntensity^n.
+  void showSpinPulseStep(uint32_t color, float phaseStep, uint8_t spillCount,
+                         bool cw, bool allLeds, bool advanceSpin,
+                         float brightness, float spreadIntensity) {
+    static uint8_t spinPos    = 0;
     static float   pulsePhase = 0.0f;
 
     if (advanceSpin) {
       spinPos = cw ? (spinPos + 1) % _numPoints : (spinPos + _numPoints - 1) % _numPoints;
     }
 
-    float brightness = (sinf(pulsePhase) + 1.0f) / 2.0f;
+    float sineVal = (sinf(pulsePhase) + 1.0f) / 2.0f;
+    float primaryBrightness = sineVal * brightness;
     _ring.clear();
     if (allLeds) {
       for (uint8_t i = 0; i < _numPoints; i++) {
-        _ring.setPixelColor(pointToLed(i), dimColor(color, brightness));
+        _ring.setPixelColor(pointToLed(i), dimColor(color, primaryBrightness));
       }
     } else {
-      _ring.setPixelColor(pointToLed(spinPos), dimColor(color, brightness));
-      float spillFactor = brightness * 0.5f;
+      _ring.setPixelColor(pointToLed(spinPos), dimColor(color, primaryBrightness));
+      float factor = spreadIntensity;
       for (uint8_t i = 1; i <= spillCount; i++) {
-        _ring.setPixelColor(pointToLed((spinPos + _numPoints - i) % _numPoints), dimColor(color, spillFactor));
-        _ring.setPixelColor(pointToLed((spinPos + i) % _numPoints), dimColor(color, spillFactor));
-        spillFactor *= 0.5f;
+        _ring.setPixelColor(pointToLed((spinPos + _numPoints - i) % _numPoints), dimColor(color, factor));
+        _ring.setPixelColor(pointToLed((spinPos + i) % _numPoints), dimColor(color, factor));
+        factor *= spreadIntensity;
       }
     }
     _ring.show();
@@ -108,17 +124,18 @@ public:
     if (pulsePhase > 2.0f * PI) pulsePhase -= 2.0f * PI;
   }
 
-  // Light one compass point with spread into neighbors at diminishing brightness.
-  // spillCount = 0 → single LED; 1 → +1 neighbor each side at 50%; 2 → 25%; 3 → 12.5%; 4 → 6.25%
-  void showPointWithSpill(uint8_t point, uint32_t color, uint8_t spillCount) {
+  // Light one compass point with spread into neighbours.
+  // Primary LED at `brightness`; spread neighbours from full `color` at spreadIntensity^n.
+  void showPointWithSpill(uint8_t point, uint32_t color, uint8_t spillCount,
+                          float brightness, float spreadIntensity) {
     _ring.clear();
-    _ring.setPixelColor(pointToLed(point % _numPoints), color);
-    float factor = 0.5f;
+    _ring.setPixelColor(pointToLed(point % _numPoints), dimColor(color, brightness));
+    float factor = spreadIntensity;
     for (uint8_t i = 1; i <= spillCount; i++) {
-      uint32_t dim = dimColor(color, factor);
-      _ring.setPixelColor(pointToLed((point + _numPoints - i) % _numPoints), dim);
-      _ring.setPixelColor(pointToLed((point + i) % _numPoints), dim);
-      factor *= 0.5f;
+      uint32_t d = dimColor(color, factor);
+      _ring.setPixelColor(pointToLed((point + _numPoints - i) % _numPoints), d);
+      _ring.setPixelColor(pointToLed((point + i) % _numPoints), d);
+      factor *= spreadIntensity;
     }
     _ring.show();
   }
@@ -133,23 +150,25 @@ public:
   }
 
   // Pulse effect: breathes via sine wave. phaseStep controls speed (call at fixed 20 ms).
-  // allLeds=true pulses every point; otherwise pulses one point with optional spill.
-  void showPulseStep(uint8_t point, uint32_t color, float phaseStep, bool allLeds, uint8_t spillCount) {
+  // Primary LED = sineValue * brightness; spread neighbours from full color at spreadIntensity^n.
+  void showPulseStep(uint8_t point, uint32_t color, float phaseStep, bool allLeds,
+                     uint8_t spillCount, float brightness, float spreadIntensity) {
     static float phase = 0.0f;
-    float brightness = (sinf(phase) + 1.0f) / 2.0f;
+    float sineVal = (sinf(phase) + 1.0f) / 2.0f;
+    float primaryBrightness = sineVal * brightness;
     _ring.clear();
     if (allLeds) {
       for (uint8_t i = 0; i < _numPoints; i++) {
-        _ring.setPixelColor(pointToLed(i), dimColor(color, brightness));
+        _ring.setPixelColor(pointToLed(i), dimColor(color, primaryBrightness));
       }
     } else {
-      _ring.setPixelColor(pointToLed(point % _numPoints), dimColor(color, brightness));
-      float spillFactor = brightness * 0.5f;
+      _ring.setPixelColor(pointToLed(point % _numPoints), dimColor(color, primaryBrightness));
+      float factor = spreadIntensity;
       for (uint8_t i = 1; i <= spillCount; i++) {
-        uint32_t spillDim = dimColor(color, spillFactor);
-        _ring.setPixelColor(pointToLed((point + _numPoints - i) % _numPoints), spillDim);
-        _ring.setPixelColor(pointToLed((point + i) % _numPoints), spillDim);
-        spillFactor *= 0.5f;
+        uint32_t d = dimColor(color, factor);
+        _ring.setPixelColor(pointToLed((point + _numPoints - i) % _numPoints), d);
+        _ring.setPixelColor(pointToLed((point + i) % _numPoints), d);
+        factor *= spreadIntensity;
       }
     }
     _ring.show();
@@ -204,6 +223,11 @@ public:
   void clear() {
     _ring.clear();
     _ring.show();
+  }
+
+  // Set hardware brightness cap (0–255). Use sparingly — prefer software brightness.
+  void setBrightness(uint8_t b) {
+    _ring.setBrightness(b);
   }
 
   uint8_t numPoints() const { return _numPoints; }
