@@ -10,10 +10,9 @@
 // NeoPixel's setBrightness() is NOT used for runtime control — it modifies
 // stored pixel values in-place and causes precision loss when called repeatedly.
 // Instead every render method accepts an explicit `brightness` float (0.0–1.0)
-// that is applied only to the PRIMARY LED.  Spread neighbours are computed
-// directly from the original full-intensity `color` using spreadIntensity^n,
-// so they are NEVER attenuated by the brightness value — only by the spread
-// falloff the user configured.
+// that acts as a global scalar on ALL active LEDs.  The primary LED is drawn at
+// `brightness`; each spread neighbour at `brightness * spreadIntensity^n`.
+// This keeps relative brightness ratios intact as brightness changes.
 
 class NeoRing {
 public:
@@ -83,7 +82,7 @@ public:
       // Trail is always behind the direction of travel — where the LED was i steps ago.
       uint8_t trail = cw ? (pos + _numPoints - i) % _numPoints
                          : (pos + i) % _numPoints;
-      _ring.setPixelColor(pointToLed(trail), dimColor(color, factor));
+      _ring.setPixelColor(pointToLed(trail), dimColor(color, brightness * factor));
       factor *= spreadIntensity;
     }
     _ring.show();
@@ -92,7 +91,7 @@ public:
 
   // Spin-pulse: chasing point breathes via a sine wave.
   // Call at a fixed 20 ms tick. advanceSpin=true when the spin interval has elapsed.
-  // Primary LED = sineValue * brightness; spread neighbours from full color at spreadIntensity^n.
+  // All LEDs scaled by brightness; trail at brightness * spreadIntensity^n; pulse modulates all.
   void showSpinPulseStep(uint32_t color, float phaseStep, uint8_t spillCount,
                          bool cw, bool allLeds, bool advanceSpin,
                          float brightness, float spreadIntensity) {
@@ -117,7 +116,7 @@ public:
         // Directional trail — same geometry as showSpinStep.
         uint8_t trail = cw ? (spinPos + _numPoints - i) % _numPoints
                            : (spinPos + i) % _numPoints;
-        _ring.setPixelColor(pointToLed(trail), dimColor(color, sineVal * factor));
+        _ring.setPixelColor(pointToLed(trail), dimColor(color, sineVal * brightness * factor));
         factor *= spreadIntensity;
       }
     }
@@ -128,14 +127,14 @@ public:
   }
 
   // Light one compass point with spread into neighbours.
-  // Primary LED at `brightness`; spread neighbours from full `color` at spreadIntensity^n.
+  // All LEDs scaled by brightness; neighbours at brightness * spreadIntensity^n.
   void showPointWithSpill(uint8_t point, uint32_t color, uint8_t spillCount,
                           float brightness, float spreadIntensity) {
     _ring.clear();
     _ring.setPixelColor(pointToLed(point % _numPoints), dimColor(color, brightness));
     float factor = spreadIntensity;
     for (uint8_t i = 1; i <= spillCount; i++) {
-      uint32_t d = dimColor(color, factor);
+      uint32_t d = dimColor(color, brightness * factor);
       _ring.setPixelColor(pointToLed((point + _numPoints - i) % _numPoints), d);
       _ring.setPixelColor(pointToLed((point + i) % _numPoints), d);
       factor *= spreadIntensity;
@@ -153,7 +152,7 @@ public:
   }
 
   // Pulse effect: breathes via sine wave. phaseStep controls speed (call at fixed 20 ms).
-  // Primary LED = sineValue * brightness; spread neighbours from full color at spreadIntensity^n.
+  // All LEDs scaled by brightness; neighbours at brightness * spreadIntensity^n; all pulse together.
   void showPulseStep(uint8_t point, uint32_t color, float phaseStep, bool allLeds,
                      uint8_t spillCount, float brightness, float spreadIntensity) {
     static float phase = 0.0f;
@@ -168,7 +167,7 @@ public:
       _ring.setPixelColor(pointToLed(point % _numPoints), dimColor(color, primaryBrightness));
       float factor = spreadIntensity;
       for (uint8_t i = 1; i <= spillCount; i++) {
-        uint32_t d = dimColor(color, sineVal * factor);  // pulse all neighbors in lockstep
+        uint32_t d = dimColor(color, sineVal * brightness * factor);  // pulse all neighbors in lockstep
         _ring.setPixelColor(pointToLed((point + _numPoints - i) % _numPoints), d);
         _ring.setPixelColor(pointToLed((point + i) % _numPoints), d);
         factor *= spreadIntensity;
