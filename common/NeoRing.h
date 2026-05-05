@@ -15,9 +15,14 @@ public:
 
   void begin() {
     _ring.begin();
-    _ring.setBrightness(80);
+    _ring.setBrightness(200);
     _ring.clear();
     _ring.show();
+  }
+
+  // Set global LED brightness cap (0–255). Takes effect on the next show().
+  void setBrightness(uint8_t b) {
+    _ring.setBrightness(b);
   }
 
   // Light the compass point nearest to bearingDeg (0–359).

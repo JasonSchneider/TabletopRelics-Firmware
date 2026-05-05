@@ -34,8 +34,9 @@
 #define CMD_COMPASS_SET_SPILL    "compass.setSpill"         // payload: { spill: 0–4 } neighbors per side
 #define CMD_COMPASS_SET_ALL      "compass.setAll"           // payload: { all: bool }
 #define CMD_COMPASS_SET_LEDS     "compass.setLeds"          // payload: { on: bool }
-#define CMD_COMPASS_SET_SPIN_DIR "compass.setSpinDirection" // payload: { direction: "cw"|"ccw" }
-#define CMD_COMPASS_CALIBRATE    "compass.calibrate"
+#define CMD_COMPASS_SET_SPIN_DIR   "compass.setSpinDirection" // payload: { direction: "cw"|"ccw" }
+#define CMD_COMPASS_SET_BRIGHTNESS "compass.setBrightness"    // payload: { brightness: 0–100 (%) }
+#define CMD_COMPASS_CALIBRATE      "compass.calibrate"
 
 // -------------------------------------------------------- Compass modes
 // Must match the mode union in RelicState (protocol.ts)

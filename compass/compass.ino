@@ -51,6 +51,7 @@ uint8_t  spillCount         = 0;    // 0–4 neighbors per side lit at diminishi
 bool     allLedsEnabled     = false; // light all compass points at once
 bool     ledsEnabled        = true;  // master LED on/off (compass.setLeds)
 bool     spinCW             = true;  // spin direction: true=clockwise, false=counter-clockwise
+uint8_t  ledBrightnessPct   = 78;    // 0–100%; maps to NeoPixel 0–255 (default ≈200/255)
 
 // ------------------------------------------------------------------ Timers
 unsigned long lastSensorRead    = 0;
@@ -261,6 +262,13 @@ class CommandCallbacks : public NimBLECharacteristicCallbacks {
     } else if (strcmp(op, CMD_COMPASS_SET_SPIN_DIR) == 0) {
       const char* dir = doc["direction"];
       if (dir) spinCW = strcmp(dir, "cw") == 0;
+
+    } else if (strcmp(op, CMD_COMPASS_SET_BRIGHTNESS) == 0) {
+      uint8_t pct = doc["brightness"].as<uint8_t>();
+      ledBrightnessPct = pct > 100 ? 100 : pct;
+      ring.setBrightness((uint16_t)ledBrightnessPct * 255 / 100);
+      currentPoint = 255;
+      updateRing();
 
     } else if (strcmp(op, CMD_COMPASS_SET_MODE) == 0) {
       const char* m = doc["mode"];
