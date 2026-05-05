@@ -113,8 +113,8 @@ public:
       _ring.setPixelColor(pointToLed(spinPos), dimColor(color, primaryBrightness));
       float factor = spreadIntensity;
       for (uint8_t i = 1; i <= spillCount; i++) {
-        _ring.setPixelColor(pointToLed((spinPos + _numPoints - i) % _numPoints), dimColor(color, factor));
-        _ring.setPixelColor(pointToLed((spinPos + i) % _numPoints), dimColor(color, factor));
+        _ring.setPixelColor(pointToLed((spinPos + _numPoints - i) % _numPoints), dimColor(color, sineVal * factor));
+        _ring.setPixelColor(pointToLed((spinPos + i) % _numPoints), dimColor(color, sineVal * factor));
         factor *= spreadIntensity;
       }
     }
@@ -165,7 +165,7 @@ public:
       _ring.setPixelColor(pointToLed(point % _numPoints), dimColor(color, primaryBrightness));
       float factor = spreadIntensity;
       for (uint8_t i = 1; i <= spillCount; i++) {
-        uint32_t d = dimColor(color, factor);
+        uint32_t d = dimColor(color, sineVal * factor);  // pulse all neighbors in lockstep
         _ring.setPixelColor(pointToLed((point + _numPoints - i) % _numPoints), d);
         _ring.setPixelColor(pointToLed((point + i) % _numPoints), d);
         factor *= spreadIntensity;
