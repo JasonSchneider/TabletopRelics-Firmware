@@ -55,18 +55,18 @@ public:
     pos = (pos + 1) % _numPoints;
   }
 
-  // Spin effect: single lit point chases around, with optional spill into neighbors.
+  // Spin effect: single lit point chases around, with optional spread into neighbors.
   // cw=true advances clockwise; cw=false advances counter-clockwise.
   void showSpinStep(uint32_t color, uint8_t spillCount, bool cw = true) {
     static uint8_t pos = 0;
     _ring.clear();
     _ring.setPixelColor(pointToLed(pos), color);
-    float factor = 0.125f;
+    float factor = 0.5f;
     for (uint8_t i = 1; i <= spillCount; i++) {
       uint32_t dim = dimColor(color, factor);
       _ring.setPixelColor(pointToLed((pos + _numPoints - i) % _numPoints), dim);
       _ring.setPixelColor(pointToLed((pos + i) % _numPoints), dim);
-      factor *= 0.125f;
+      factor *= 0.5f;
     }
     _ring.show();
     pos = cw ? (pos + 1) % _numPoints : (pos + _numPoints - 1) % _numPoints;
@@ -90,11 +90,11 @@ public:
       }
     } else {
       _ring.setPixelColor(pointToLed(spinPos), dimColor(color, brightness));
-      float spillFactor = brightness * 0.125f;
+      float spillFactor = brightness * 0.5f;
       for (uint8_t i = 1; i <= spillCount; i++) {
         _ring.setPixelColor(pointToLed((spinPos + _numPoints - i) % _numPoints), dimColor(color, spillFactor));
         _ring.setPixelColor(pointToLed((spinPos + i) % _numPoints), dimColor(color, spillFactor));
-        spillFactor *= 0.25f;
+        spillFactor *= 0.5f;
       }
     }
     _ring.show();
@@ -103,19 +103,17 @@ public:
     if (pulsePhase > 2.0f * PI) pulsePhase -= 2.0f * PI;
   }
 
-  // Light one compass point with spill into neighbors at diminishing brightness.
-  // spillCount = 0 → single LED; 1 → +1 neighbor each side at 50%; 2 → also 33%; etc.
-  // Each spill ring is 12.5% the brightness of the ring inside it:
-  // level 1 = 12.5%, level 2 = 1.56%, level 3 = ~0.2%, level 4 = ~0.02%
+  // Light one compass point with spread into neighbors at diminishing brightness.
+  // spillCount = 0 → single LED; 1 → +1 neighbor each side at 50%; 2 → 25%; 3 → 12.5%; 4 → 6.25%
   void showPointWithSpill(uint8_t point, uint32_t color, uint8_t spillCount) {
     _ring.clear();
     _ring.setPixelColor(pointToLed(point % _numPoints), color);
-    float factor = 0.125f;
+    float factor = 0.5f;
     for (uint8_t i = 1; i <= spillCount; i++) {
       uint32_t dim = dimColor(color, factor);
       _ring.setPixelColor(pointToLed((point + _numPoints - i) % _numPoints), dim);
       _ring.setPixelColor(pointToLed((point + i) % _numPoints), dim);
-      factor *= 0.125f;
+      factor *= 0.5f;
     }
     _ring.show();
   }
@@ -141,12 +139,12 @@ public:
       }
     } else {
       _ring.setPixelColor(pointToLed(point % _numPoints), dimColor(color, brightness));
-      float spillFactor = brightness * 0.125f;
+      float spillFactor = brightness * 0.5f;
       for (uint8_t i = 1; i <= spillCount; i++) {
         uint32_t spillDim = dimColor(color, spillFactor);
         _ring.setPixelColor(pointToLed((point + _numPoints - i) % _numPoints), spillDim);
         _ring.setPixelColor(pointToLed((point + i) % _numPoints), spillDim);
-        spillFactor *= 0.25f;
+        spillFactor *= 0.5f;
       }
     }
     _ring.show();
