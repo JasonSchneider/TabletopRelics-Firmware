@@ -70,9 +70,9 @@ public:
     pos = (pos + 1) % _numPoints;
   }
 
-  // Spin effect: single lit point chases around.
-  // Primary LED drawn at `brightness`; spread neighbours drawn from full `color`
-  // at spreadIntensity^n per ring — independent of brightness.
+  // Spin effect: single lit point chases around with a directional trail.
+  // Primary LED at `brightness`; trail LEDs behind the direction of travel
+  // at spreadIntensity^n — no leading-edge spread, so motion reads cleanly.
   void showSpinStep(uint32_t color, uint8_t spillCount, bool cw,
                     float brightness, float spreadIntensity) {
     static uint8_t pos = 0;
@@ -80,9 +80,10 @@ public:
     _ring.setPixelColor(pointToLed(pos), dimColor(color, brightness));
     float factor = spreadIntensity;
     for (uint8_t i = 1; i <= spillCount; i++) {
-      uint32_t dim = dimColor(color, factor);
-      _ring.setPixelColor(pointToLed((pos + _numPoints - i) % _numPoints), dim);
-      _ring.setPixelColor(pointToLed((pos + i) % _numPoints), dim);
+      // Trail is always behind the direction of travel — where the LED was i steps ago.
+      uint8_t trail = cw ? (pos + _numPoints - i) % _numPoints
+                         : (pos + i) % _numPoints;
+      _ring.setPixelColor(pointToLed(trail), dimColor(color, factor));
       factor *= spreadIntensity;
     }
     _ring.show();
@@ -113,8 +114,10 @@ public:
       _ring.setPixelColor(pointToLed(spinPos), dimColor(color, primaryBrightness));
       float factor = spreadIntensity;
       for (uint8_t i = 1; i <= spillCount; i++) {
-        _ring.setPixelColor(pointToLed((spinPos + _numPoints - i) % _numPoints), dimColor(color, sineVal * factor));
-        _ring.setPixelColor(pointToLed((spinPos + i) % _numPoints), dimColor(color, sineVal * factor));
+        // Directional trail — same geometry as showSpinStep.
+        uint8_t trail = cw ? (spinPos + _numPoints - i) % _numPoints
+                           : (spinPos + i) % _numPoints;
+        _ring.setPixelColor(pointToLed(trail), dimColor(color, sineVal * factor));
         factor *= spreadIntensity;
       }
     }
