@@ -363,12 +363,8 @@ void setup() {
   setupBle();
   Serial.println("BLE advertising — ready");
 
-  // 3. Sensor — DISABLED: Wire.begin() triggers TG1WDT_SYS_RESET on this board,
-  //    cause unknown. Skipping until I2C issue is resolved. sensorAvailable stays
-  //    false so the device runs in fault mode (red blink) but BLE works normally.
-  // TODO: re-enable once Wire/LSM9DS1 init is debugged
-  // sensorAvailable = trySensorInit();
-  Serial.println("Sensor disabled — running in fault mode");
+  // 3. Sensor
+  sensorAvailable = trySensorInit();
 }
 
 // ================================================================ Loop
