@@ -34,12 +34,15 @@ public:
   }
 
   bool begin(uint8_t sda, uint8_t scl) {
-    // If the LSM9DS1 was mid-transaction when power was cut it can hold SDA
-    // low indefinitely, causing Wire.begin() to spin until the WDT fires.
-    // Clock SCL up to 9 times to let the device finish its byte, then issue
-    // a STOP condition to release the bus before handing off to Wire.
+    Serial.printf("  SDA=%d level=%d  SCL=%d level=%d\n",
+      sda, digitalRead(sda), scl, digitalRead(scl));
+    Serial.println("  recoverBus...");
     recoverBus(sda, scl);
+    Serial.printf("  post-recovery: SDA=%d SCL=%d\n",
+      digitalRead(sda), digitalRead(scl));
+    Serial.println("  Wire.begin...");
     Wire.begin(sda, scl);
+    Serial.println("  Wire.begin done — calling _lsm.begin...");
     if (!_lsm.begin()) return false;
     _lsm.setupAccel(_lsm.LSM9DS1_ACCELRANGE_2G);
     _lsm.setupMag(_lsm.LSM9DS1_MAGGAIN_4GAUSS);
