@@ -13,11 +13,32 @@ public:
     _hardIronOffset[2] = 0;
   }
 
+  static void recoverBus(uint8_t sda, uint8_t scl) {
+    pinMode(scl, OUTPUT);
+    pinMode(sda, INPUT_PULLUP);
+    digitalWrite(scl, HIGH);
+    // Clock out up to 9 pulses until SDA floats high (device releases the bus).
+    for (uint8_t i = 0; i < 9 && digitalRead(sda) == LOW; i++) {
+      digitalWrite(scl, LOW);  delayMicroseconds(5);
+      digitalWrite(scl, HIGH); delayMicroseconds(5);
+    }
+    // Issue a STOP condition: SDA rises while SCL is high.
+    pinMode(sda, OUTPUT);
+    digitalWrite(sda, LOW);  delayMicroseconds(5);
+    digitalWrite(scl, HIGH); delayMicroseconds(5);
+    digitalWrite(sda, HIGH); delayMicroseconds(5);
+    // Return both pins to input so Wire.begin() can reconfigure them cleanly.
+    pinMode(sda, INPUT);
+    pinMode(scl, INPUT);
+    delay(10);
+  }
+
   bool begin(uint8_t sda, uint8_t scl) {
-    // Explicitly start Wire with the correct pins before NimBLE launches its
-    // FreeRTOS tasks. Calling Wire.begin() after NimBLE init causes a
-    // TG1WDT_SYS_RESET because the I2C peripheral init blocks long enough to
-    // trip the timer-group watchdog while BLE tasks hold the scheduler.
+    // If the LSM9DS1 was mid-transaction when power was cut it can hold SDA
+    // low indefinitely, causing Wire.begin() to spin until the WDT fires.
+    // Clock SCL up to 9 times to let the device finish its byte, then issue
+    // a STOP condition to release the bus before handing off to Wire.
+    recoverBus(sda, scl);
     Wire.begin(sda, scl);
     if (!_lsm.begin()) return false;
     _lsm.setupAccel(_lsm.LSM9DS1_ACCELRANGE_2G);
