@@ -13,7 +13,12 @@ public:
     _hardIronOffset[2] = 0;
   }
 
-  bool begin() {
+  bool begin(uint8_t sda, uint8_t scl) {
+    // Explicitly start Wire with the correct pins before NimBLE launches its
+    // FreeRTOS tasks. Calling Wire.begin() after NimBLE init causes a
+    // TG1WDT_SYS_RESET because the I2C peripheral init blocks long enough to
+    // trip the timer-group watchdog while BLE tasks hold the scheduler.
+    Wire.begin(sda, scl);
     if (!_lsm.begin()) return false;
     _lsm.setupAccel(_lsm.LSM9DS1_ACCELRANGE_2G);
     _lsm.setupMag(_lsm.LSM9DS1_MAGGAIN_4GAUSS);

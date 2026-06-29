@@ -153,7 +153,7 @@ void updateRing() {
 
 bool trySensorInit() {
   Serial.println("Initialising LSM9DS1...");
-  if (!sensor.begin()) {
+  if (!sensor.begin(PIN_LSM9DS1_SDA, PIN_LSM9DS1_SCL)) {
     Serial.println("LSM9DS1 not found — will retry");
     return false;
   }
@@ -359,12 +359,13 @@ void setup() {
   delay(200);
   Serial.println("NeoPixel test done");
 
-  // 2. BLE
+  // 2. Sensor — must init I2C (Wire.begin) BEFORE NimBLE starts its FreeRTOS
+  //    tasks. Calling Wire.begin() after NimBLE init trips the TG1WDT watchdog.
+  sensorAvailable = trySensorInit();
+
+  // 3. BLE
   setupBle();
   Serial.println("BLE advertising — ready");
-
-  // 3. Sensor
-  sensorAvailable = trySensorInit();
 }
 
 // ================================================================ Loop
