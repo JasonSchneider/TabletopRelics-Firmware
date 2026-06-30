@@ -34,15 +34,8 @@ public:
   }
 
   bool begin(uint8_t sda, uint8_t scl) {
-    Serial.printf("  SDA=%d level=%d  SCL=%d level=%d\n",
-      sda, digitalRead(sda), scl, digitalRead(scl));
-    Serial.println("  recoverBus...");
     recoverBus(sda, scl);
-    Serial.printf("  post-recovery: SDA=%d SCL=%d\n",
-      digitalRead(sda), digitalRead(scl));
-    Serial.println("  Wire.begin...");
     Wire.begin(sda, scl);
-    Serial.println("  Wire.begin done — calling _lsm.begin...");
     if (!_lsm.begin()) return false;
     _lsm.setupAccel(_lsm.LSM9DS1_ACCELRANGE_2G);
     _lsm.setupMag(_lsm.LSM9DS1_MAGGAIN_4GAUSS);
