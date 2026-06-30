@@ -21,6 +21,7 @@
 #include <Wire.h>
 #include <NimBLEDevice.h>
 #include <ArduinoJson.h>
+#include <Preferences.h>
 
 #include "../common/Protocol.h"
 #include "CompassConfig.h"
@@ -30,6 +31,7 @@
 // ------------------------------------------------------------------ Objects
 NeoRing        ring(PIN_NEOPIXEL, RING_LED_COUNT, RING_NUM_POINTS, RING_NORTH_LED);
 CompassSensor  sensor;
+Preferences    prefs;
 
 // ------------------------------------------------------------------ BLE
 NimBLEServer*         bleServer            = nullptr;
@@ -42,6 +44,7 @@ volatile bool         connectionAnimPending = false;
 String   mode               = COMPASS_MODE_AMBIENT;
 float    targetBearing      = 0.0;
 float    currentBearing     = 0.0;
+float    northOffset        = 0.0;  // degrees; saved to NVS; subtracted from raw heading
 uint8_t  currentPoint       = 0;
 bool     sensorAvailable    = false;
 uint32_t ledColor           = COLOR_AMBIENT;
@@ -65,6 +68,11 @@ unsigned long lastFaultBlink    = 0;
 bool          faultLedOn        = false;
 
 // ================================================================ Helpers
+
+// Apply the saved north offset so the ring's LED 0 always faces true north.
+float adjustedBearing(float raw) {
+  return fmod(raw - northOffset + 360.0, 360.0);
+}
 
 uint8_t bearingToPoint(float bearing) {
   float step = 360.0 / RING_NUM_POINTS;
@@ -124,7 +132,7 @@ float spreadIntensityFloat() { return spreadIntensityPct  / 100.0f; }
 void updateRing() {
   if (!ledsEnabled) { ring.clear(); return; }
   if (mode == COMPASS_MODE_AMBIENT) {
-    uint8_t point = bearingToPointHysteresis(currentBearing, currentPoint);
+    uint8_t point = bearingToPointHysteresis(adjustedBearing(currentBearing), currentPoint);
     if (point != currentPoint) {
       currentPoint = point;
       ring.showPoint(currentPoint, NeoRing::dim(COLOR_AMBIENT, brightnessFloat()));
@@ -283,7 +291,6 @@ class CommandCallbacks : public NimBLECharacteristicCallbacks {
       const char* m = doc["mode"];
       if (m) {
         mode = m;
-        if (mode == COMPASS_MODE_CALIBRATE && sensorAvailable) sensor.startCalibration();
         currentPoint = 255;
         updateRing();
         notifyState();
@@ -291,9 +298,17 @@ class CommandCallbacks : public NimBLECharacteristicCallbacks {
 
     } else if (strcmp(op, CMD_COMPASS_CALIBRATE) == 0) {
       if (sensorAvailable) {
-        mode = COMPASS_MODE_CALIBRATE;
-        sensor.startCalibration();
+        // Record current raw heading as north. All future headings are offset by this value.
+        northOffset = currentBearing;
+        prefs.begin("compass", false);
+        prefs.putFloat("northOffset", northOffset);
+        prefs.end();
+        sensor.setCalibrated(true);
+        mode = COMPASS_MODE_AMBIENT;
+        currentPoint = 255;
+        updateRing();
         notifyState();
+        Serial.printf("North offset saved: %.1f°\n", northOffset);
       }
 
     } else if (strcmp(op, CMD_PING) == 0) {
@@ -363,6 +378,15 @@ void setup() {
   //    tasks. Calling Wire.begin() after NimBLE init trips the TG1WDT watchdog.
   sensorAvailable = trySensorInit();
 
+  // Load saved north offset from NVS (0.0 and calibrated=false if never set).
+  prefs.begin("compass", true);
+  northOffset = prefs.getFloat("northOffset", 0.0);
+  prefs.end();
+  if (northOffset != 0.0) {
+    sensor.setCalibrated(true);
+    Serial.printf("North offset loaded: %.1f°\n", northOffset);
+  }
+
   // 3. BLE
   setupBle();
   Serial.println("BLE advertising — ready");
@@ -405,7 +429,7 @@ void loop() {
     lastSensorRead = now;
     float prevBearing = currentBearing;
     currentBearing = sensor.heading();
-    uint8_t newPoint = bearingToPointHysteresis(currentBearing, currentPoint);
+    uint8_t newPoint = bearingToPointHysteresis(adjustedBearing(currentBearing), currentPoint);
 
     static unsigned long lastDebugPrint = 0;
     if (now - lastDebugPrint >= 2000) {

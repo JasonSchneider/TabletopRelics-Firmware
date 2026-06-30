@@ -91,6 +91,7 @@ public:
   }
 
   bool isCalibrated() const { return _calibrated; }
+  void setCalibrated(bool v) { _calibrated = v; }
 
 private:
   Adafruit_LSM9DS1 _lsm;
