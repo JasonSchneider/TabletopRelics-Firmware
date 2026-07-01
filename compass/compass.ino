@@ -182,7 +182,7 @@ void notifyState() {
   StaticJsonDocument<192> doc;
   doc["type"]       = DEVICE_TYPE_COMPASS;
   doc["mode"]       = mode;
-  doc["heading"]    = (int)round(currentBearing);
+  doc["heading"]    = (int)round(adjustedBearing(currentBearing));
   doc["target"]     = (int)round(targetBearing);
   doc["calibrated"] = sensor.isCalibrated();
   doc["charging"]   = isCharging();
